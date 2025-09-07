@@ -1,4 +1,3 @@
-package src;
 import org.antlr.v4.runtime.*;
 import org.antlr.v4.runtime.tree.*;
 
@@ -10,6 +9,8 @@ public class Main {
         MiLenguajeParser parser = new MiLenguajeParser(tokens);
 
         ParseTree tree = parser.program();
-        System.out.println(tree.toStringTree(parser));
+
+        Evaluador eval = new Evaluador();
+        eval.visit(tree);
     }
 }
