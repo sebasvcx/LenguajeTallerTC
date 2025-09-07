@@ -1,9 +1,7 @@
-
 import java.util.HashMap;
 import java.util.Map;
 
 public class Evaluador extends MiLenguajeBaseVisitor<Object> {
-
     private Map<String, Object> memoria = new HashMap<>();
 
     @Override
@@ -23,18 +21,14 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
 
     @Override
     public Object visitLiteral(MiLenguajeParser.LiteralContext ctx) {
-        if (ctx.ENTERO() != null) {
-            return Integer.parseInt(ctx.ENTERO().getText());
-        } else if (ctx.DECIMAL() != null) {
-            return Double.parseDouble(ctx.DECIMAL().getText());
-        } else if (ctx.CADENA() != null) {
-            String texto = ctx.CADENA().getText();
-            return texto.substring(1, texto.length() - 1); // quitar comillas
-        } else if (ctx.VERDADERO() != null) {
-            return true;
-        } else if (ctx.FALSO() != null) {
-            return false;
+        if (ctx.ENTERO() != null) return Integer.parseInt(ctx.ENTERO().getText());
+        if (ctx.DECIMAL() != null) return Double.parseDouble(ctx.DECIMAL().getText());
+        if (ctx.CADENA() != null) {
+            String txt = ctx.CADENA().getText();
+            return txt.substring(1, txt.length() - 1); // quitar comillas
         }
+        if (ctx.VERDADERO() != null) return true;
+        if (ctx.FALSO() != null) return false;
         return null;
     }
 
