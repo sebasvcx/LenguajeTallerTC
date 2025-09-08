@@ -126,7 +126,7 @@ IDENT
 DECIMAL   : [0-9]+ '.' [0-9]+;
 ENTERO    : [0-9]+;
 
-// Cadenas: dobles comillas sin escapes avanzados (simple para el taller)
+// Cadenas
 CADENA    : '"' (~["\\] | '\\' .)* '"' ;
 
 // -------- Espacios y comentarios --------
