@@ -21,7 +21,7 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
 
     private boolean aBoolean(Object o) {
         if (o instanceof Boolean) return (Boolean) o;
-        // Si no quieres verdad numérica, elimina las 2 líneas siguientes:
+        // verdad numérica (0 = falso, distinto de 0 = verdadero)
         if (esNumero(o)) return aDouble(o) != 0.0;
         throw new RuntimeException("Esperaba booleano, obtuve: " + o);
     }
@@ -74,32 +74,36 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
     public Object visitAddExpr(MiLenguajeParser.AddExprContext ctx) {
         Object izq = visit(ctx.expr(0));
         Object der = visit(ctx.expr(1));
+        String op = ctx.getChild(1).getText(); // "+" o "-"
 
         // Concatenación si alguno es cadena (solo para '+')
-        if (ctx.op.getType() == MiLenguajeParser.MAS &&
-            (izq instanceof String || der instanceof String)) {
+        if (op.equals("+") && (izq instanceof String || der instanceof String)) {
             String s1 = (izq == null ? "null" : String.valueOf(izq));
             String s2 = (der == null ? "null" : String.valueOf(der));
             return s1 + s2;
         }
 
         double a = aDouble(izq), b = aDouble(der);
-        return (ctx.op.getType() == MiLenguajeParser.MAS) ? (a + b) : (a - b);
+        return op.equals("+") ? (a + b) : (a - b);
     }
 
     @Override
     public Object visitMulExpr(MiLenguajeParser.MulExprContext ctx) {
         double a = aDouble(visit(ctx.expr(0)));
         double b = aDouble(visit(ctx.expr(1)));
+        String op = ctx.getChild(1).getText(); // "*", "/" o "%"
 
-        if (ctx.op.getType() == MiLenguajeParser.POR) return a * b;
-        if (ctx.op.getType() == MiLenguajeParser.DIV) {
-            if (b == 0.0) throw new RuntimeException("División por cero");
-            return a / b;
+        switch (op) {
+            case "*": return a * b;
+            case "/":
+                if (b == 0.0) throw new RuntimeException("División por cero");
+                return a / b;
+            case "%":
+                if (b == 0.0) throw new RuntimeException("Módulo por cero");
+                return a % b;
+            default:
+                throw new RuntimeException("Operador desconocido: " + op);
         }
-        // Módulo
-        if (b == 0.0) throw new RuntimeException("Módulo por cero");
-        return a % b;
     }
 
     @Override
@@ -109,31 +113,29 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
         return Math.pow(base, exp);
     }
 
-    // Unario (si tu gramática lo define como regla aparte)
-    @Override
-    public Object visitUnaryMinusExpr(MiLenguajeParser.UnaryMinusExprContext ctx) {
-        return -aDouble(visit(ctx.expr()));
-    }
-
     /* ===================== Relacional / Igualdad ===================== */
 
     @Override
     public Object visitRelExpr(MiLenguajeParser.RelExprContext ctx) {
         double a = aDouble(visit(ctx.expr(0)));
         double b = aDouble(visit(ctx.expr(1)));
-        switch (ctx.op.getType()) {
-            case MiLenguajeParser.MAYOR:   return a > b;
-            case MiLenguajeParser.MENOR:   return a < b;
-            case MiLenguajeParser.MAYORIG: return a >= b;
-            case MiLenguajeParser.MENORIG: return a <= b;
+        String op = ctx.getChild(1).getText(); // "<", "<=", ">", ">="
+
+        switch (op) {
+            case ">":  return a > b;
+            case "<":  return a < b;
+            case ">=": return a >= b;
+            case "<=": return a <= b;
+            default:   throw new RuntimeException("Operador relacional desconocido: " + op);
         }
-        return false;
     }
 
     @Override
     public Object visitEqExpr(MiLenguajeParser.EqExprContext ctx) {
         Object izq = visit(ctx.expr(0));
         Object der = visit(ctx.expr(1));
+        String op = ctx.getChild(1).getText(); // "==" o "!="
+
         boolean iguales;
         if (izq == null || der == null) {
             iguales = (izq == null && der == null);
@@ -142,12 +144,13 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
         } else {
             iguales = izq.equals(der);
         }
-        // Ajusta si tu token para '==' no es IGUAL
-        if (ctx.op.getType() == MiLenguajeParser.IGUAL) return iguales;
-        return !iguales; // '!='
+
+        if (op.equals("==")) return iguales;
+        if (op.equals("!=")) return !iguales;
+        throw new RuntimeException("Operador de igualdad desconocido: " + op);
     }
 
-    /* ===================== Lógico (si la gramática lo define) ===================== */
+    /* ===================== Lógico ===================== */
 
     @Override
     public Object visitAndExpr(MiLenguajeParser.AndExprContext ctx) {
@@ -163,18 +166,6 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
         if (a) return true; // cortocircuito
         boolean b = aBoolean(visit(ctx.expr(1)));
         return a || b;
-    }
-
-    @Override
-    public Object visitNotExpr(MiLenguajeParser.NotExprContext ctx) {
-        return !aBoolean(visit(ctx.expr()));
-    }
-
-    /* ===================== Paréntesis (si existe la regla) ===================== */
-
-    @Override
-    public Object visitParenExpr(MiLenguajeParser.ParenExprContext ctx) {
-        return visit(ctx.expr());
     }
 
     /* ===================== Control de flujo ===================== */
@@ -200,7 +191,7 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
 
     @Override
     public Object visitParaStmt(MiLenguajeParser.ParaStmtContext ctx) {
-        // Suponiendo: para ( asignacion ; expr ; asignacion ) { bloque }
+        // para ( asignacion ; expr ; asignacion ) { bloque }
         visit(ctx.asignacion(0)); // init
         while (aBoolean(visit(ctx.expr()))) { // cond
             visit(ctx.bloque());
@@ -210,7 +201,7 @@ public class Evaluador extends MiLenguajeBaseVisitor<Object> {
     }
 
     /* ===================== Bloques ===================== */
-    // Si tu "bloque" es { stmt* }, visitChildren ya recorre todo; este override es opcional.
+
     @Override
     public Object visitBloque(MiLenguajeParser.BloqueContext ctx) {
         return visitChildren(ctx);
